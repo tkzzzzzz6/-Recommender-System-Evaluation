@@ -1,0 +1,21 @@
+# 基础科学计算包
+numpy>=1.19.2
+pandas>=1.1.0
+scipy>=1.6.0
+
+# 机器学习相关
+scikit-learn>=0.23.2
+
+# PyTorch相关
+torch>=1.7.0
+torchinfo>=1.7.0
+
+# 可视化
+matplotlib>=3.3.0
+
+# 进度条
+tqdm>=4.50.0
+
+# Jupyter相关（可选）
+jupyter>=1.0.0
+notebook>=6.0.0 
