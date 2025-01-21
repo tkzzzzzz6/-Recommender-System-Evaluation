@@ -8,6 +8,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchinfo import summary
 from sklearn.metrics import auc, roc_auc_score, roc_curve
+import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -80,7 +81,20 @@ class DeepCrossing(nn.Module):
         outputs = F.sigmoid(self.linear(r))
         return outputs
 
-def train_model(net, dl_train, dl_valid, optimizer, loss_func, metric_func, epochs=4, log_step_freq=10):
+def plot_metric(dfhistory, metric):
+    train_metrics = dfhistory[metric]
+    val_metrics = dfhistory['val_'+metric]
+    epochs = range(1, len(train_metrics) + 1)
+    plt.plot(epochs, train_metrics, 'bo--')
+    plt.plot(epochs, val_metrics, 'ro-')
+    plt.title('Training and validation '+ metric)
+    plt.xlabel("Epochs")
+    plt.ylabel(metric)
+    plt.legend(["train_"+metric, 'val_'+metric])
+    plt.savefig(f'./model/{metric}_history.png')
+    plt.close()
+
+def train_model(net, dl_train, dl_valid, optimizer, loss_func, metric_func, epochs=5, log_step_freq=10):
     """
     训练模型的函数
     """
@@ -90,6 +104,10 @@ def train_model(net, dl_train, dl_valid, optimizer, loss_func, metric_func, epoc
     nowtime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print('========='*8 + "%s" %nowtime)
 
+    # 用于记录每个epoch的指标
+    train_aucs = []
+    val_aucs = []
+
     for epoch in range(1, epochs+1):
         # 训练阶段
         net.train()
@@ -97,44 +115,54 @@ def train_model(net, dl_train, dl_valid, optimizer, loss_func, metric_func, epoc
         metric_sum = 0.0
         step = 1
         
+        train_pred_list = []
+        train_label_list = []
+        
         for step, (features, labels) in enumerate(dl_train, 1):
             optimizer.zero_grad()
             predictions = net(features)
             loss = loss_func(predictions, labels)
-            try:
-                metric = metric_func(predictions, labels)
-            except ValueError:
-                continue
+            
+            # 收集预测值和真实值
+            train_pred_list.extend(predictions.detach().cpu().numpy())
+            train_label_list.extend(labels.detach().cpu().numpy())
             
             loss.backward()
             optimizer.step()
             
             loss_sum += loss.item()
-            metric_sum += metric
+            
             if step % log_step_freq == 0:
-                print(("[step = %d] loss: %.3f, "+metric_name+": %.3f") %
-                      (step, loss_sum/step, metric_sum/step))
+                print(("[step = %d] loss: %.3f") %
+                      (step, loss_sum/step))
+        
+        # 计算整个epoch的训练AUC
+        train_auc = roc_auc_score(train_label_list, train_pred_list)
         
         # 验证阶段
         net.eval()
         val_loss_sum = 0.0
-        val_metric_sum = 0.0
+        val_pred_list = []
+        val_label_list = []
         val_step = 1
         
         for val_step, (features, labels) in enumerate(dl_valid, 1):
             with torch.no_grad():
                 predictions = net(features)
                 val_loss = loss_func(predictions, labels)
-                try:
-                    val_metric = metric_func(predictions, labels)
-                except ValueError:
-                    continue
+                val_pred_list.extend(predictions.cpu().numpy())
+                val_label_list.extend(labels.cpu().numpy())
             val_loss_sum += val_loss.item()
-            val_metric_sum += val_metric
+        
+        # 计算整个epoch的验证AUC
+        val_auc = roc_auc_score(val_label_list, val_pred_list)
         
         # 记录日志
-        info = (epoch, loss_sum/step, metric_sum/step, 
-                val_loss_sum/val_step, val_metric_sum/val_step)
+        train_aucs.append(train_auc)
+        val_aucs.append(val_auc)
+        
+        info = (epoch, loss_sum/step, train_auc, 
+                val_loss_sum/val_step, val_auc)
         dfhistory.loc[epoch-1] = info
         
         print(("\nEPOCH = %d, loss = %.3f,"+ metric_name + 
@@ -144,6 +172,11 @@ def train_model(net, dl_train, dl_valid, optimizer, loss_func, metric_func, epoc
         print("\n"+"==========="*8 + "%s"%nowtime)
             
     print('Finished Training...')
+    
+    # 绘制训练历史
+    plot_metric(dfhistory, "loss")
+    plot_metric(dfhistory, "auc")
+    
     return dfhistory
 
 def main():
