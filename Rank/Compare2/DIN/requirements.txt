@@ -1,3 +1,4 @@
+torchkeras==1.2
 numpy>=1.19.2
 pandas>=1.2.4
 matplotlib>=3.3.4
