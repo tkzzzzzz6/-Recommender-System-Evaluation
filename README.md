@@ -130,13 +130,6 @@ python ContentBased_Recommend.py
 2. 创建必要的输出目录（如model/）
 4. 建议使用虚拟环境避免依赖冲突
 
-## 贡献指南
-
-1. Fork 项目
-2. 创建特性分支
-3. 提交更改
-4. 发起 Pull Request
-
 
 ## 参考资料
 
