@@ -120,7 +120,7 @@ python ContentBased_Recommend.py
 
 各模型都包含了对应的评估指标：
 - AUC
-- Log Loss
+- Loss
 
 评估结果会保存在各模型的 `model/` 目录下。
 
