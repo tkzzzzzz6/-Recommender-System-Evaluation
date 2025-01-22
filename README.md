@@ -75,7 +75,13 @@ cd Rank/Compare1/Wide_Deep
 python wide_deep.py
 ```
 
-3. GBDT+LR模型
+3. Deep_Crossing模型
+```bash
+cd Rank/Compare1/Deep_Crossing
+python deep_crossing.py
+```
+
+4. GBDT+LR模型
 ```bash
 cd Rank/Compare1/GBDT+LR
 python gbdt_lr.py
