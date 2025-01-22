@@ -45,9 +45,10 @@ class ContentBasedRecommend:
         
         # 处理NaN值并连接tag和genres
         movie_profile['combined'] = movie_profile.apply(
-            lambda x: ' '.join(x['tag'] if isinstance(x['tag'], list) else [] + 
-                             x['genres'] if isinstance(x['genres'], list) else []), axis=1
-        )
+            lambda x: ' '.join(x['tag'] + x['genres'] if isinstance(x['tag'], list) and isinstance(x['genres'], list) 
+                             else x['genres'] if isinstance(x['genres'], list)
+                             else x['tag'] if isinstance(x['tag'], list)
+                             else []), axis=1)
         
         tfidf_matrix = vectorizer.fit_transform(movie_profile['combined'])
         
@@ -91,17 +92,24 @@ class ContentBasedRecommend:
                 if mid in self.movie_profile.index:
                     interest_words.extend(self.movie_profile.loc[mid, 'profile'])
             
-            # 统计关键词频率
-            word_count = collections.Counter(interest_words)
-            
-            # 选择top_n个关键词作为用户兴趣
-            self.user_profile[uid] = word_count.most_common(top_n)
+            # 如果用户没有观看记录或关键词,使用所有电影的热门关键词
+            if not interest_words:
+                all_profiles = [profile for profiles in self.movie_profile['profile'].values for profile in profiles]
+                word_count = collections.Counter(all_profiles)
+                self.user_profile[uid] = word_count.most_common(top_n)
+            else:
+                # 统计关键词频率
+                word_count = collections.Counter(interest_words)
+                # 选择top_n个关键词作为用户兴趣
+                self.user_profile[uid] = word_count.most_common(top_n)
 
     def recommend(self, user_id, top_k=10):
         """为用户生成推荐"""
         if user_id not in self.user_profile:
             print(f"User {user_id} not found in user profiles")
-            return []
+            # 使用所有电影中最受欢迎的电影作为推荐
+            popular_movies = self.movies.sort_index()[:top_k]
+            return [(idx, 1.0, row['title']) for idx, row in popular_movies.iterrows()]
             
         result_table = {}
         
@@ -115,14 +123,27 @@ class ContentBasedRecommend:
         movie_scores = [(mid, sum(weights)) for mid, weights in result_table.items()]
         movie_scores.sort(key=lambda x: x[1], reverse=True)
         
-        # 返回top_k推荐结果，添加检查确保电影ID存在
+        # 返回top_k推荐结果
         recommendations = []
-        for mid, score in movie_scores[:top_k]:
-            if mid in self.movies.index:
-                recommendations.append((mid, score, self.movies.loc[mid, 'title']))
+        seen_movies = set()
         
-        if not recommendations:
-            print("No recommendations found for this user")
+        # 首先添加基于用户兴趣的推荐
+        for mid, score in movie_scores:
+            if mid in self.movies.index and mid not in seen_movies:
+                recommendations.append((mid, score, self.movies.loc[mid, 'title']))
+                seen_movies.add(mid)
+                if len(recommendations) >= top_k:
+                    break
+        
+        # 如果推荐数量不足,添加热门电影补充
+        if len(recommendations) < top_k:
+            popular_movies = self.movies.sort_index()
+            for idx, row in popular_movies.iterrows():
+                if idx not in seen_movies:
+                    recommendations.append((idx, 0.1, row['title']))
+                    if len(recommendations) >= top_k:
+                        break
+                        
         return recommendations
 
     def run(self):
@@ -151,7 +172,6 @@ if __name__ == "__main__":
     # 为用户1生成推荐
     recommendations = recommender.recommend(1)
     
-    if recommendations:  # 只有在有推荐结果时才打印
-        print("\nRecommendations for user 1:")
-        for movie_id, score, title in recommendations:
-            print(f"Movie: {title}, Score: {score:.4f}")
+    print("\nRecommendations for user 1:")
+    for movie_id, score, title in recommendations:
+        print(f"Movie: {title}, Score: {score:.4f}")
