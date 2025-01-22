@@ -35,23 +35,18 @@
 1. 克隆项目
 
 ```bash
-git clone [项目地址]
-cd [项目目录]
+git clone https://github.com/tkzzzzzz6/Recommender-System-Evaluation
+cd Recommender-System-Evaluation
 ```
 
 2. 创建虚拟环境（推荐）
 ```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# 或
-venv\Scripts\activate  # Windows
+conda create -n [虚拟环境名称] python=3.8
+conda activate [虚拟环境名称]
 ```
 
 3. 安装依赖
 ```bash
-# 安装基础依赖
-pip install -r requirements.txt
-
 # 安装特定模型的依赖
 cd Rank/Compare1/DeepFM
 pip install -r requirements.txt
@@ -126,9 +121,6 @@ python ContentBased_Recommend.py
 各模型都包含了对应的评估指标：
 - AUC
 - Log Loss
-- Precision
-- Recall
-- F1 Score
 
 评估结果会保存在各模型的 `model/` 目录下。
 
